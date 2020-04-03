@@ -664,7 +664,7 @@ def imul83hAdd(inString,fName):
     for i in inString:
         val = val * 131
         val += ord(i)
-    val = val & 0x7FFFFFFF
+    val = val & 0xFFFFFFFF
     return val
 
 pseudocode_imul83hAdd = '''acc := 0;
@@ -978,19 +978,20 @@ for c in input_string {
 acc := SHL(acc, 7) - acc
 '''
 
-def new_crc32(inString,fName):
+def crc32bzip2lower(inString,fName):
     crc32_table = [0] * 256
     for i in xrange(256):
-	result = i << 24
-	for j in xrange(8):
-	    if (result & 0x80000000) == 0:
-		result = (2 * result) & 0xffffffff
-	    else:
-		result = ((2 * result) ^ 0x4C11DB7) & 0xffffffff
-	crc32_table[i] = result
+        v = i << 24
+        for j in xrange(8):
+            if (v & 0x80000000) == 0:
+                v = (2 * v) & 0xffffffff
+            else:
+                v = ((2 * v) ^ 0x4C11DB7) & 0xffffffff
+        crc32_table[i] = v
+
     result = 0xffffffff
-    for i in xrange(len(inString)):
-	result = (crc32_table[ ord(inString[i]) ^ ((result >> 24) & 0xff) ] ^ (result << 8)) & 0xffffffff
+    for c in inString:
+        result = (crc32_table[ ord(c.lower()) ^ ((result >> 24) & 0xff) ] ^ (result << 8)) & 0xffffffff
 
     return (result ^ 0xffffffff) & 0xffffffff
 
@@ -1035,6 +1036,19 @@ Smork_bot
 def crc32Xor0xca9d4d4e(inString,fName):
     return (0xffffffff & (zlib.crc32(inString))) ^ 0xca9d4d4e
 
+def adler32_666(inString,fName):
+    return zlib.adler32(inString.upper(), 666) & 0xffffffff
+
+def shift0x82F63B78(inString,fName):
+    val = 0
+    for i in inString:
+        v1 = ((((ord(i) | 0x20) ^ val) >> 1) ^ (0x82F63B78 * (((ord(i) | 0x20) ^ val) & 1))) & 0xffffffff
+        v2 = ((((v1 >> 1) ^ (0x82F63B78 * (v1 & 1))) >> 1) ^ (0x82F63B78 * (((v1 >> 1) ^ (0x78 * (v1 & 1))) & 1))) & 0xffffffff
+        v3 = ((((v2 >> 1) ^ (0x82F63B78 * (v2 & 1))) >> 1) ^ (0x82F63B78 * (((v2 >> 1) ^ (0x78 * (v2 & 1))) & 1))) & 0xffffffff
+        v4 = ((((v3 >> 1) ^ (0x82F63B78 * (v3 & 1))) >> 1) ^ (0x82F63B78 * (((v3 >> 1) ^ (0x78 * (v3 & 1))) & 1))) & 0xffffffff
+        val = ((v4 >> 1) ^ (0x82F63B78 * (v4 & 1))) & 0xffffffff
+    return val ^ 0xBC
+
 ############################################################
 
 # The list of tuples of (supported hash name, hash size, pseudo_code)
@@ -1078,13 +1092,15 @@ HASH_TYPES = [
     ('poisonIvyHash',       32, pseudocode_poisonIvyHash),
     ('crc32',               32, 'Standard crc32'),
     ('crc32Xor0xca9d4d4e',  32, 'crc32 ^ 0xCA9D4D4E'),
-    ('new_crc32',           32, 'same crc32'),
+    ('crc32bzip2lower',           32, 'crc32 bzip2 and str lower'),
     ('mult21AddHash32',         32, pseudocode_hashMult21),
     ('add1505Shl5Hash32',       32, pseudocode_add1505Shl5Hash32),
     ('dualaccModFFF1Hash',      32, pseudocode_dualaccModFFF1Hash),
     ('hash_Carbanak',           32, pseudocode_hash_Carbanak),
     ('hash_ror13AddUpperDllnameHash32',32, pseudocode_hash_ror13AddUpperDllnameHash32),
     ('fnv1Xor67f', 32, pseudocode_fnv1Xor67f),
+    ('adler32_666', 32, 'Adler32 with starting value 666'),
+    ('shift0x82F63B78',           32, 'like crc32c'),
 ]
 
 
